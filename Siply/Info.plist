@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Siply needs your location to automatically log where you're enjoying drinks and help you discover drinks nearby.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Siply needs your location to automatically log where you're enjoying drinks and help you discover drinks nearby.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Siply needs access to your camera to take photos of your drinks.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Siply needs access to your photo library to select drink photos.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

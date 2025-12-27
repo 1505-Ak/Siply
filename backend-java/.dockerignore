@@ -1,0 +1,11 @@
+.gradle
+build
+out
+tmp
+.idea
+.vscode
+*.iml
+*.log
+.DS_Store
+
+
