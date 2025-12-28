@@ -247,6 +247,6 @@ For questions or issues, contact the dev team or refer to the business plan in `
 
 ---
 
-**Built with ❤️ using SwiftUI**
+**Built using swift, java, redis, and graphql**
 
 
