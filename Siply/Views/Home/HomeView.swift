@@ -11,7 +11,11 @@ import Combine
 struct HomeView: View {
     @EnvironmentObject var drinkManager: DrinkManager
     @EnvironmentObject var achievementManager: AchievementManager
+    @EnvironmentObject var venueManager: VenueManager
     @State private var friendPosts: [FriendPost] = FriendPost.samplePosts
+    @State private var feedDrinks: [APIDrink] = []
+    @State private var isLoadingFeed = false
+    @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
         NavigationView {
@@ -41,7 +45,25 @@ struct HomeView: View {
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                fetchFeed()
+            }
         }
+    }
+    
+    private func fetchFeed() {
+        isLoadingFeed = true
+        
+        APIClient.shared.getFeed(limit: 20)
+            .sink { completion in
+                isLoadingFeed = false
+                if case .failure(let error) = completion {
+                    print("Failed to fetch feed: \(error)")
+                }
+            } receiveValue: { response in
+                feedDrinks = response.feed
+            }
+            .store(in: &cancellables)
     }
     
     private var customHeader: some View {
@@ -56,7 +78,7 @@ struct HomeView: View {
                 
                 Spacer()
                 
-                Button(action: {}) {
+                NavigationLink(destination: AchievementsView()) {
                     ZStack {
                         Circle()
                             .fill(Color.siplyLightBrown.opacity(0.3))
@@ -83,23 +105,29 @@ struct HomeView: View {
     
     private var discoverTrendingRow: some View {
         HStack(alignment: .top, spacing: 10) {
-            // Discover
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Discover")
-                    .font(.custom("TrebuchetMS-Bold", size: 14))
-                    .foregroundColor(.white)
-                
-                VStack(spacing: 6) {
-                    MiniPlaceRow(icon: "🍸", name: "The Cocktail")
-                    MiniPlaceRow(icon: "☕️", name: "Zen Coffee")
-                    MiniPlaceRow(icon: "🧋", name: "Bubble Tea")
+            // Discover - Show real venues
+            NavigationLink(destination: DiscountsLandingView()) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Discover")
+                        .font(.custom("TrebuchetMS-Bold", size: 14))
+                        .foregroundColor(.white)
+                    
+                    VStack(spacing: 6) {
+                        ForEach(venueManager.venues.prefix(3)) { venue in
+                            MiniPlaceRow(
+                                icon: venue.imageIcon,
+                                name: venue.name
+                            )
+                        }
+                    }
                 }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 150)
+                .background(Color.siplyCardBackground)
+                .cornerRadius(12)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 150)
-            .background(Color.siplyCardBackground)
-            .cornerRadius(12)
+            .buttonStyle(.plain)
             
             // Trending
             VStack(alignment: .leading, spacing: 8) {
@@ -142,7 +170,7 @@ struct HomeView: View {
                 
                 Spacer()
                 
-                Button(action: {}) {
+                NavigationLink(destination: JournalView()) {
                     Text("See All")
                         .font(.custom("TrebuchetMS", size: 13))
                         .foregroundColor(.siplyJade)
@@ -167,7 +195,10 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(DrinkCategory.allCases, id: \.self) { category in
-                        CategoryButton(category: category)
+                        NavigationLink(destination: FilteredJournalView(category: category)) {
+                            CategoryButton(category: category)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

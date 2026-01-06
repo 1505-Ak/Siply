@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct SiplyApp: App {
+    @StateObject private var authManager = AuthManager()
     @StateObject private var drinkManager = DrinkManager()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var userManager = UserManager()
@@ -53,12 +54,19 @@ struct SiplyApp: App {
     
     var body: some Scene {
         WindowGroup {
-            SplashScreenView()
-                .environmentObject(drinkManager)
-                .environmentObject(locationManager)
-                .environmentObject(userManager)
-                .environmentObject(venueManager)
-                .preferredColorScheme(.dark)
+            if authManager.isAuthenticated {
+                SplashScreenView()
+                    .environmentObject(authManager)
+                    .environmentObject(drinkManager)
+                    .environmentObject(locationManager)
+                    .environmentObject(userManager)
+                    .environmentObject(venueManager)
+                    .preferredColorScheme(.dark)
+            } else {
+                AuthView()
+                    .environmentObject(authManager)
+                    .preferredColorScheme(.dark)
+            }
         }
     }
 }

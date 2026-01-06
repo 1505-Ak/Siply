@@ -12,7 +12,7 @@ class APIClient {
     private init() {
         // Change this to your backend URL
         #if DEBUG
-        self.baseURL = "http://localhost:3000/api"
+        self.baseURL = "http://localhost:8080/api"
         #else
         self.baseURL = "https://your-production-api.com/api"
         #endif
@@ -22,19 +22,34 @@ class APIClient {
         config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config)
         
-        // Load saved token
-        self.authToken = UserDefaults.standard.string(forKey: "authToken")
+        // Load saved tokens
+        self.authToken = UserDefaults.standard.string(forKey: "accessToken")
     }
     
     // MARK: - Token Management
-    func setAuthToken(_ token: String) {
-        self.authToken = token
-        UserDefaults.standard.set(token, forKey: "authToken")
+    func setAuthTokens(accessToken: String, refreshToken: String) {
+        self.authToken = accessToken
+        UserDefaults.standard.set(accessToken, forKey: "accessToken")
+        UserDefaults.standard.set(refreshToken, forKey: "refreshToken")
     }
     
     func clearAuthToken() {
         self.authToken = nil
-        UserDefaults.standard.removeObject(forKey: "authToken")
+        UserDefaults.standard.removeObject(forKey: "accessToken")
+        UserDefaults.standard.removeObject(forKey: "refreshToken")
+    }
+    
+    func refreshAccessToken() -> AnyPublisher<AuthResponse, Error> {
+        guard let refreshToken = UserDefaults.standard.string(forKey: "refreshToken") else {
+            return Fail(error: APIError.serverError("No refresh token available")).eraseToAnyPublisher()
+        }
+        
+        return request(
+            endpoint: "/auth/refresh",
+            method: "POST",
+            body: ["refreshToken": refreshToken],
+            requiresAuth: false
+        )
     }
     
     // MARK: - Generic Request
@@ -123,7 +138,7 @@ class APIClient {
     }
     
     func createDrink(drink: DrinkCreate) -> AnyPublisher<DrinkResponse, Error> {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "name": drink.name,
             "category": drink.category,
             "rating": drink.rating,
@@ -135,6 +150,10 @@ class APIClient {
             "latitude": drink.latitude ?? NSNull(),
             "longitude": drink.longitude ?? NSNull()
         ]
+        
+        if let imageUrl = drink.imageUrl {
+            body["imageUrl"] = imageUrl
+        }
         
         return request(
             endpoint: "/drinks",
@@ -215,13 +234,59 @@ class APIClient {
             method: "POST"
         )
     }
+    
+    // MARK: - Media Upload
+    func uploadImage(_ imageData: Data, filename: String = "image.jpg") -> AnyPublisher<ImageUploadResponse, Error> {
+        guard let url = URL(string: "\(baseURL)/media/upload") else {
+            return Fail(error: APIError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        // Add auth token
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        request.httpBody = body
+        
+        return session.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw APIError.invalidResponse
+                }
+                
+                if !(200...299).contains(httpResponse.statusCode) {
+                    if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                        throw APIError.serverError(errorResponse.message)
+                    }
+                    throw APIError.httpError(httpResponse.statusCode)
+                }
+                
+                return data
+            }
+            .decode(type: ImageUploadResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .eraseToAnyPublisher()
+    }
 }
 
 // MARK: - API Models
 struct AuthResponse: Codable {
-    let message: String
+    let accessToken: String
+    let refreshToken: String
     let user: UserProfile
-    let token: String
 }
 
 struct UserProfile: Codable {
@@ -232,15 +297,11 @@ struct UserProfile: Codable {
     let bio: String?
     let avatarUrl: String?
     let favoriteDrink: String?
-    let stats: UserStats?
-}
-
-struct UserStats: Codable {
-    let followersCount: Int
-    let followingCount: Int
-    let totalDrinks: Int
-    let totalCities: Int
-    let totalCountries: Int
+    let followersCount: Int?
+    let followingCount: Int?
+    let totalDrinks: Int?
+    let totalCities: Int?
+    let totalCountries: Int?
 }
 
 struct DrinksResponse: Codable {
@@ -278,6 +339,7 @@ struct DrinkCreate {
     let locationCountry: String?
     let latitude: Double?
     let longitude: Double?
+    let imageUrl: String?
 }
 
 struct DrinkResponse: Codable {
@@ -351,6 +413,12 @@ struct Pagination: Codable {
     let limit: Int
     let offset: Int
     let total: Int?
+}
+
+struct ImageUploadResponse: Codable {
+    let url: String
+    let filename: String
+    let size: Int
 }
 
 // MARK: - API Errors

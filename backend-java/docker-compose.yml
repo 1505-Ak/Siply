@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   db:
-    image: postgres:16
+    image: postgres:13
     environment:
       POSTGRES_DB: siply
       POSTGRES_USER: postgres
@@ -11,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build: .
@@ -18,11 +21,12 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/siply
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
-      JWT_SECRET: change-me-super-secret-key
+      JWT_SECRET: siply-super-secret-jwt-key-minimum-256-bits-required-here
     ports:
       - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   db_data:

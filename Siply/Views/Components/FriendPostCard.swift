@@ -11,6 +11,7 @@ struct FriendPostCard: View {
     let post: FriendPost
     @State private var isLiked = false
     @State private var showComments = false
+    @State private var newCommentText = ""
     @State private var imageScale: CGFloat = 1.0
     
     var body: some View {
@@ -198,6 +199,9 @@ struct FriendPostCard: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+            .sheet(isPresented: $showComments) {
+                CommentsSheet(post: post, isPresented: $showComments, newCommentText: $newCommentText)
+            }
             
             // Drink info section (minimal)
             VStack(alignment: .leading, spacing: 4) {
@@ -284,6 +288,84 @@ struct FriendPostCard: View {
         } else {
             let days = Int(seconds / 86400)
             return "\(days)d ago"
+        }
+    }
+}
+
+// MARK: - Comments Sheet
+
+struct CommentsSheet: View {
+    let post: FriendPost
+    @Binding var isPresented: Bool
+    @Binding var newCommentText: String
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.siplyBackground.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Comments")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    if post.comments.isEmpty {
+                        Text("No comments yet. Be the first to comment!")
+                            .foregroundColor(.gray)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(post.comments, id: \.self) { comment in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(comment.author)
+                                            .font(.headline)
+                                            .foregroundColor(.siplyJade)
+                                        Text(comment.text)
+                                            .foregroundColor(.white)
+                                        Text(comment.timestamp, style: .time)
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    .padding()
+                                    .background(Color.siplyCardBackground)
+                                    .cornerRadius(10)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Add comment field
+                    HStack(spacing: 12) {
+                        TextField("Add a comment...", text: $newCommentText, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .foregroundColor(.white)
+                            .lineLimit(1...3)
+                        
+                        Button(action: {
+                            // TODO: connect to backend; for now, clear and close
+                            newCommentText = ""
+                            isPresented = false
+                        }) {
+                            Image(systemName: "paperplane.fill")
+                                .foregroundColor(.siplyJade)
+                                .padding(10)
+                                .background(Color.siplyCardBackground)
+                                .clipShape(Circle())
+                        }
+                        .disabled(newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(.vertical, 8)
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") { isPresented = false }
+                        .foregroundColor(.siplyJade)
+                }
+            }
         }
     }
 }

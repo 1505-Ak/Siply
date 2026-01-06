@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import Combine
 
 struct CameraAddDrinkView: View {
     @Environment(\.dismiss) var dismiss
@@ -47,6 +48,9 @@ struct DrinkReviewView: View {
     @State private var notes = ""
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
+    @State private var isUploading = false
+    @State private var uploadError: String?
+    @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
         ZStack {
@@ -223,14 +227,27 @@ struct DrinkReviewView: View {
                                 .cornerRadius(12)
                         }
                         
+                        // Error message
+                        if let error = uploadError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                        }
+                        
                         // Post button
                         Button(action: saveDrink) {
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.title3)
-                                Text("Post to Journal")
-                                    .font(.headline)
-                                    .fontWeight(.bold)
+                                if isUploading {
+                                    ProgressView()
+                                        .tint(.siplyCharcoal)
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.title3)
+                                    Text("Post to Journal")
+                                        .font(.headline)
+                                        .fontWeight(.bold)
+                                }
                             }
                             .foregroundColor(.siplyCharcoal)
                             .frame(maxWidth: .infinity)
@@ -245,8 +262,8 @@ struct DrinkReviewView: View {
                             .cornerRadius(16)
                             .shadow(color: Color.siplyJade.opacity(0.3), radius: 10, x: 0, y: 5)
                         }
-                        .disabled(drinkName.isEmpty)
-                        .opacity(drinkName.isEmpty ? 0.5 : 1.0)
+                        .disabled(drinkName.isEmpty || isUploading)
+                        .opacity(drinkName.isEmpty || isUploading ? 0.5 : 1.0)
                         .padding(.top, 8)
                     }
                     .padding()
@@ -274,31 +291,67 @@ struct DrinkReviewView: View {
     }
     
     private func saveDrink() {
-        let imageData = image?.jpegData(compressionQuality: 0.7)
+        guard let imageData = image?.jpegData(compressionQuality: 0.7) else {
+            uploadError = "Failed to process image"
+            return
+        }
         
-        let newDrink = Drink(
-            name: drinkName,
-            category: selectedCategory,
-            rating: rating,
-            notes: notes,
-            imageData: imageData,
-            locationName: locationManager.currentLocationName.isEmpty ? "Unknown Location" : locationManager.currentLocationName,
-            latitude: locationManager.location?.coordinate.latitude,
-            longitude: locationManager.location?.coordinate.longitude,
-            tags: [],
-            price: nil
-        )
+        isUploading = true
+        uploadError = nil
         
-        drinkManager.addDrink(newDrink)
-        
-        achievementManager.checkAchievements(
-            drinkCount: drinkManager.getTotalDrinks(),
-            locationCount: drinkManager.getTotalLocations(),
-            hasAllCategories: drinkManager.hasAllCategories(),
-            hasFiveStarRating: drinkManager.hasFiveStarRating()
-        )
-        
-        HapticManager.shared.notification(type: .success)
-        onComplete()
+        // First upload the image
+        APIClient.shared.uploadImage(imageData)
+            .flatMap { uploadResponse -> AnyPublisher<DrinkResponse, Error> in
+                // Then create the drink with the image URL
+                let drinkCreate = DrinkCreate(
+                    name: self.drinkName,
+                    category: self.selectedCategory.rawValue,
+                    rating: self.rating,
+                    price: nil,
+                    notes: self.notes.isEmpty ? nil : self.notes,
+                    locationName: self.locationManager.currentLocationName.isEmpty ? nil : self.locationManager.currentLocationName,
+                    locationCity: nil,
+                    locationCountry: nil,
+                    latitude: self.locationManager.location?.coordinate.latitude,
+                    longitude: self.locationManager.location?.coordinate.longitude,
+                    imageUrl: uploadResponse.url
+                )
+                
+                return APIClient.shared.createDrink(drink: drinkCreate)
+            }
+            .sink { [self] completion in
+                isUploading = false
+                if case .failure(let error) = completion {
+                    uploadError = error.localizedDescription
+                }
+            } receiveValue: { [self] response in
+                // Save locally as well for immediate UI update
+                let newDrink = Drink(
+                    name: drinkName,
+                    category: selectedCategory,
+                    rating: rating,
+                    notes: notes,
+                    imageData: imageData,
+                    locationName: locationManager.currentLocationName.isEmpty ? "Unknown Location" : locationManager.currentLocationName,
+                    latitude: locationManager.location?.coordinate.latitude,
+                    longitude: locationManager.location?.coordinate.longitude,
+                    tags: [],
+                    price: nil
+                )
+                
+                drinkManager.addDrink(newDrink)
+                
+                // Check for achievements
+                achievementManager.checkAchievements(
+                    drinkCount: drinkManager.getTotalDrinks(),
+                    locationCount: drinkManager.getTotalLocations(),
+                    hasAllCategories: drinkManager.hasAllCategories(),
+                    hasFiveStarRating: drinkManager.hasFiveStarRating()
+                )
+                
+                HapticManager.shared.notification(type: .success)
+                onComplete()
+            }
+            .store(in: &cancellables)
     }
 }

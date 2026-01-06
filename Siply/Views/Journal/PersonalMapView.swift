@@ -14,10 +14,16 @@ struct PersonalMapView: View {
     @Environment(\.dismiss) var dismiss
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
-        span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2)
+        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
+    @State private var cameraPosition: MapCameraPosition = .region(MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
+        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    ))
     @State private var selectedDrink: Drink?
-    @State private var showStats = true
+    @State private var showStats = false
+    @State private var showDrinkPicker = false
+    @State private var searchText: String = ""
     
     var body: some View {
         NavigationView {
@@ -26,22 +32,34 @@ struct PersonalMapView: View {
                     // Empty state
                     emptyStateView
                 } else {
-                    // Map with drinks
-                    Map(coordinateRegion: $region, annotationItems: drinksWithLocations) { drink in
-                        MapAnnotation(coordinate: drink.coordinate!) {
-                            PersonalMapMarker(drink: drink)
-                                .onTapGesture {
-                                    withAnimation {
-                                        selectedDrink = drink
-                                        HapticManager.shared.selection()
-                                    }
+                    // Map with drinks (modern Map API)
+                    Map(position: $cameraPosition) {
+                        ForEach(drinksWithLocations) { drink in
+                            if let coordinate = drink.coordinate {
+                                Annotation(drink.name, coordinate: coordinate) {
+                                    DrinkIconMarker(drink: drink)
+                                        .onTapGesture {
+                                            withAnimation {
+                                                selectedDrink = drink
+                                                HapticManager.shared.selection()
+                                                // Zoom in on the selected drink
+                                                let zoomRegion = MKCoordinateRegion(
+                                                    center: coordinate,
+                                                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                                                )
+                                                region = zoomRegion
+                                                cameraPosition = .region(zoomRegion)
+                                            }
+                                        }
                                 }
+                            }
                         }
                     }
+                    .mapStyle(.standard)
                     .ignoresSafeArea()
                     
                     VStack {
-                        // Stats overlay at top
+                        // Stats overlay at top (toggle)
                         if showStats {
                             statsOverlay
                                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -56,8 +74,30 @@ struct PersonalMapView: View {
                                     selectedDrink = nil
                                 }
                             })
-                            .padding()
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                    
+                    // Floating controls: show all, list, info toggle
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 8) {
+                                FloatingCircleButton(icon: "scope") {
+                                    withAnimation { centerMapOnDrinks() }
+                                }
+                                FloatingCircleButton(icon: "list.bullet") {
+                                    showDrinkPicker = true
+                                }
+                                FloatingCircleButton(icon: showStats ? "info.circle.fill" : "info.circle") {
+                                    withAnimation { showStats.toggle() }
+                                }
+                            }
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 12)
                         }
                     }
                 }
@@ -84,7 +124,27 @@ struct PersonalMapView: View {
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    if let first = drinksWithLocations.first?.coordinate {
+                        let startRegion = MKCoordinateRegion(center: first, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05))
+                        region = startRegion
+                        cameraPosition = .region(startRegion)
+                    }
                     centerMapOnDrinks()
+                }
+            }
+        }
+        .sheet(isPresented: $showDrinkPicker) {
+            DrinkListSheet(drinks: filteredDrinks, searchText: $searchText) { drink in
+                if let coordinate = drink.coordinate {
+                    withAnimation {
+                        selectedDrink = drink
+                        let zoomRegion = MKCoordinateRegion(
+                            center: coordinate,
+                            span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                        )
+                        region = zoomRegion
+                        cameraPosition = .region(zoomRegion)
+                    }
                 }
             }
         }
@@ -170,6 +230,15 @@ struct PersonalMapView: View {
         drinkManager.drinks.filter { $0.coordinate != nil }
     }
     
+    private var filteredDrinks: [Drink] {
+        let base = drinksWithLocations
+        guard !searchText.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.locationName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    
     private func centerMapOnDrinks() {
         guard !drinksWithLocations.isEmpty else { return }
         
@@ -190,18 +259,14 @@ struct PersonalMapView: View {
         )
         
         // Calculate span with reasonable bounds
-        var latDelta = max((maxLat - minLat) * 1.5, 0.05)
-        var lonDelta = max((maxLon - minLon) * 1.5, 0.05)
+        // Start with a tight default span for single-location cases
+        var latDelta = max((maxLat - minLat) * 1.5, 0.03)
+        var lonDelta = max((maxLon - minLon) * 1.5, 0.03)
         
-        // Clamp to reasonable maximum values
-        latDelta = min(latDelta, 180.0)
-        lonDelta = min(lonDelta, 180.0)
-        
-        // If drinks are too spread out, use a more zoomed-out view
-        if latDelta > 90 || lonDelta > 90 {
-            latDelta = 90
-            lonDelta = 90
-        }
+        // Clamp to avoid zooming out too far (keep closer like main map)
+        let maxSpan: CLLocationDegrees = 0.5
+        latDelta = min(latDelta, maxSpan)
+        lonDelta = min(lonDelta, maxSpan)
         
         let span = MKCoordinateSpan(
             latitudeDelta: latDelta,
@@ -209,7 +274,9 @@ struct PersonalMapView: View {
         )
         
         withAnimation {
-            region = MKCoordinateRegion(center: center, span: span)
+            let newRegion = MKCoordinateRegion(center: center, span: span)
+            region = newRegion
+            cameraPosition = .region(newRegion)
         }
     }
     
@@ -234,6 +301,23 @@ struct PersonalMapView: View {
         case .tea: return "leaf"
         case .soda: return "bubbles.and.sparkles"
         case .other: return "cup.and.saucer"
+        }
+    }
+}
+
+// Reusable floating circular button
+private struct FloatingCircleButton: View {
+    let icon: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.siplyCharcoal)
+                .padding(12)
+                .background(Color.siplyJade)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
         }
     }
 }

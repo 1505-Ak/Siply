@@ -7,24 +7,28 @@
 
 import SwiftUI
 
-struct SimpleMapMarker: View {
+struct DrinkIconMarker: View {
+    let drink: Drink
+    
     var body: some View {
         ZStack {
-            // Outer glow
             Circle()
-                .fill(Color.siplyJade.opacity(0.3))
-                .frame(width: 28, height: 28)
+                .fill(Color.siplyJade.opacity(0.22))
+                .frame(width: 34, height: 34)
                 .blur(radius: 3)
             
-            // Main circle
             Circle()
-                .fill(Color.siplyJade)
-                .frame(width: 14, height: 14)
+                .fill(Color.siplyCardBackground)
+                .frame(width: 30, height: 30)
                 .overlay(
                     Circle()
-                        .stroke(Color.white, lineWidth: 2)
+                        .stroke(Color.siplyJade, lineWidth: 2)
                 )
-                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                .overlay(
+                    Text(drink.category.icon)
+                        .font(.system(size: 16))
+                )
+                .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 2)
         }
     }
 }
@@ -34,20 +38,20 @@ struct MinimalistDrinkCard: View {
     let onClose: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             // Small preview
             Group {
                 if let imageData = drink.imageData, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 50, height: 50)
+                        .frame(width: 46, height: 46)
                         .clipped()
                         .cornerRadius(8)
                 } else {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.siplyJade.opacity(0.2))
-                        .frame(width: 50, height: 50)
+                        .frame(width: 46, height: 46)
                         .overlay(
                             Image(systemName: "wineglass.fill")
                                 .font(.system(size: 20))
@@ -88,11 +92,11 @@ struct MinimalistDrinkCard: View {
                     .clipShape(Circle())
             }
         }
-        .padding(12)
+        .padding(9)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.siplyCardBackground)
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 2)
         )
     }
 }

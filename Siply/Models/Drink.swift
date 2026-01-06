@@ -65,6 +65,7 @@ struct Drink: Identifiable, Codable {
     }
     
     init(
+        id: UUID = UUID(),
         name: String,
         category: DrinkCategory,
         rating: Double,
@@ -82,6 +83,7 @@ struct Drink: Identifiable, Codable {
         likes: Int = 0,
         shares: Int = 0
     ) {
+        self.id = id
         self.name = name
         self.category = category
         self.rating = rating

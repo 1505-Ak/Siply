@@ -76,7 +76,7 @@ struct LoyaltySchemesView: View {
     private var loyaltyCardsSection: some View {
         VStack(spacing: 16) {
             // Points Multiplier
-            NavigationLink(destination: PointsMultiplierView()) {
+            NavigationLink(destination: PointsMultiplierPlaceholderView()) {
                 LoyaltySchemeCard(
                     title: "Points Multiplier",
                     subtitle: "Earn bonus points",
@@ -87,7 +87,7 @@ struct LoyaltySchemesView: View {
             }
             
             // Subscriptions
-            NavigationLink(destination: SubscriptionsView()) {
+            NavigationLink(destination: SubscriptionsPlaceholderView()) {
                 LoyaltySchemeCard(
                     title: "Subscriptions",
                     subtitle: "Monthly perks & savings",
@@ -109,7 +109,7 @@ struct LoyaltySchemesView: View {
             }
             
             // Exclusive Member Offers
-            NavigationLink(destination: ExclusiveOffersView()) {
+            NavigationLink(destination: ExclusiveOffersPlaceholderView()) {
                 LoyaltySchemeCard(
                     title: "Exclusive Member Offers",
                     subtitle: "Special deals for members",
@@ -118,6 +118,48 @@ struct LoyaltySchemesView: View {
                     count: venueManager.getVenuesWithExclusiveOffers().count
                 )
             }
+        }
+    }
+}
+
+// MARK: - Minimal placeholder views to avoid crashes
+
+struct PointsMultiplierPlaceholderView: View {
+    var body: some View {
+        SimplePlaceholderView(title: "Points Multiplier")
+    }
+}
+
+struct SubscriptionsPlaceholderView: View {
+    var body: some View {
+        SimplePlaceholderView(title: "Subscriptions")
+    }
+}
+
+struct ExclusiveOffersPlaceholderView: View {
+    var body: some View {
+        SimplePlaceholderView(title: "Exclusive Member Offers")
+    }
+}
+
+// Reuse existing VisitCounterView for visit card; it already exists in Discounts folder.
+
+struct SimplePlaceholderView: View {
+    let title: String
+    var body: some View {
+        ZStack {
+            Color.siplyBackground.ignoresSafeArea()
+            VStack(spacing: 12) {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                Text("Coming soon. In the meantime, explore discounts and venues.")
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+            }
+            .padding()
         }
     }
 }

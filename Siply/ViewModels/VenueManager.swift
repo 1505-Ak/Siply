@@ -11,14 +11,64 @@ import Combine
 class VenueManager: ObservableObject {
     @Published var venues: [Venue] = []
     @Published var favoriteVenues: [Venue] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
     
     private let venuesKey = "siply_venues"
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
         loadVenues()
         if venues.isEmpty {
             loadSampleVenues()
         }
+        
+        // Fetch from backend
+        fetchVenuesFromBackend()
+    }
+    
+    func fetchVenuesFromBackend() {
+        isLoading = true
+        errorMessage = nil
+        
+        APIClient.shared.getVenues()
+            .sink { [weak self] completion in
+                self?.isLoading = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                    print("Failed to fetch venues: \(error)")
+                }
+            } receiveValue: { [weak self] response in
+                self?.mergeVenuesFromAPI(response.venues)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func mergeVenuesFromAPI(_ apiVenues: [APIVenue]) {
+        // Convert API venues to local Venue model
+        for apiVenue in apiVenues {
+            if !venues.contains(where: { $0.id.uuidString == apiVenue.id }) {
+                let venue = Venue(
+                    id: UUID(uuidString: apiVenue.id) ?? UUID(),
+                    name: apiVenue.name,
+                    category: VenueCategory(rawValue: apiVenue.category.lowercased()) ?? .cafe,
+                    location: VenueLocation(
+                        address: "",
+                        city: apiVenue.city ?? "",
+                        country: apiVenue.country ?? "",
+                        latitude: apiVenue.latitude ?? 0,
+                        longitude: apiVenue.longitude ?? 0
+                    ),
+                    hasStudentDiscount: apiVenue.hasStudentDiscount,
+                    hasHappyHour: apiVenue.hasHappyHour,
+                    discounts: [],
+                    isPartner: apiVenue.isPartner
+                )
+                venues.append(venue)
+            }
+        }
+        saveVenues()
+        updateFavorites()
     }
     
     // MARK: - Data Persistence

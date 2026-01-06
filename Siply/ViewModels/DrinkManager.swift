@@ -14,17 +14,20 @@ class DrinkManager: ObservableObject {
     @Published var selectedCategory: DrinkCategory?
     @Published var searchText: String = ""
     @Published var drinkOfTheDay: Drink?
+    @Published var isLoading = false
+    @Published var errorMessage: String?
     
     private let userDefaults = UserDefaults.standard
     private let drinksKey = "SavedDrinks"
     private let drinkOfDayKey = "DrinkOfTheDay"
     private let lastUpdateKey = "LastDrinkOfDayUpdate"
     private let lastBackupKey = "LastBackupDate"
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
         loadDrinks()
         
-        // Load sample data if first launch
+        // Load sample data if first launch and offline
         if drinks.isEmpty {
             drinks = Drink.sampleDrinks
             saveDrinks()
@@ -33,6 +36,57 @@ class DrinkManager: ObservableObject {
         filteredDrinks = drinks
         updateDrinkOfTheDay()
         performAutoBackup()
+        
+        // Fetch from backend
+        fetchDrinksFromBackend()
+    }
+    
+    func fetchDrinksFromBackend() {
+        isLoading = true
+        errorMessage = nil
+        
+        APIClient.shared.getDrinks(limit: 100)
+            .sink { [weak self] completion in
+                self?.isLoading = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                    print("Failed to fetch drinks: \(error)")
+                }
+            } receiveValue: { [weak self] response in
+                self?.mergeDrinksFromAPI(response.drinks)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func mergeDrinksFromAPI(_ apiDrinks: [APIDrink]) {
+        // Convert API drinks to local Drink model and merge
+        for apiDrink in apiDrinks {
+            // Check if we already have this drink locally
+            if !drinks.contains(where: { $0.id.uuidString == apiDrink.id }) {
+                let drink = Drink(
+                    id: UUID(uuidString: apiDrink.id) ?? UUID(),
+                    name: apiDrink.name,
+                    category: DrinkCategory(rawValue: apiDrink.category) ?? .other,
+                    rating: apiDrink.rating,
+                    notes: apiDrink.notes ?? "",
+                    imageName: nil,
+                    imageData: nil,
+                    locationName: apiDrink.locationName ?? "Unknown",
+                    latitude: apiDrink.latitude,
+                    longitude: apiDrink.longitude,
+                    date: Date(),
+                    tags: [],
+                    price: apiDrink.price,
+                    isFavorite: apiDrink.isLiked ?? false,
+                    isPublic: true,
+                    likes: apiDrink.likesCount ?? 0,
+                    shares: 0
+                )
+                drinks.append(drink)
+            }
+        }
+        saveDrinks()
+        filterDrinks()
     }
     
     func addDrink(_ drink: Drink) {
