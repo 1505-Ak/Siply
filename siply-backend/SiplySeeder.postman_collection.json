@@ -1,0 +1,219 @@
+{
+	"info": {
+		"_postman_id": "siply-seeder-uuid",
+		"name": "Siply Data Seeder",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Login (Get Token)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.collectionVariables.set(\"token\", jsonData.accessToken);",
+							"console.log(\"Token set: \" + jsonData.accessToken);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"tester\",\n    \"password\": \"password123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Create Oat Flat White",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Oat Flat White\",\n    \"category\": \"Coffee\",\n    \"rating\": 5.0,\n    \"price\": 4.50,\n    \"notes\": \"Incredible latte art and the oat milk was perfectly steamed.\",\n    \"locationName\": \"The Espresso Lab\",\n    \"locationCity\": \"London\",\n    \"latitude\": 51.5204,\n    \"longitude\": -0.1005,\n    \"imageUrl\": \"https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=800\",\n    \"tags\": [\"coffee\", \"oatmilk\", \"morning\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/drinks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"drinks"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Create Espresso Martini",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Espresso Martini\",\n    \"category\": \"Cocktail\",\n    \"rating\": 4.5,\n    \"price\": 12.00,\n    \"notes\": \"Strong kick, perfect foam. A bit pricey but worth it.\",\n    \"locationName\": \"Nightjar\",\n    \"locationCity\": \"London\",\n    \"latitude\": 51.5262,\n    \"longitude\": -0.0880,\n    \"imageUrl\": \"https://plus.unsplash.com/premium_photo-1700089193311-6ba5fd4ad7c6?q=80&w=687\",\n    \"tags\": [\"cocktail\", \"nightout\", \"vodka\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/drinks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"drinks"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Create Hazy IPA",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Hazy IPA\",\n    \"category\": \"Beer\",\n    \"rating\": 4.0,\n    \"price\": 7.00,\n    \"notes\": \"Citrusy notes, very refreshing.\",\n    \"locationName\": \"BrewDog Shoreditch\",\n    \"locationCity\": \"London\",\n    \"latitude\": 51.5238,\n    \"longitude\": -0.0764,\n    \"imageUrl\": \"https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=800\",\n    \"tags\": [\"craftbeer\", \"ipa\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/drinks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"drinks"
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Create Brown Sugar Boba",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Brown Sugar Boba\",\n    \"category\": \"Bubble Tea\",\n    \"rating\": 5.0,\n    \"price\": 6.50,\n    \"notes\": \"The pearls were perfectly chewy (QQ).\",\n    \"locationName\": \"Coco Fresh Tea\",\n    \"locationCity\": \"London\",\n    \"latitude\": 51.5115,\n    \"longitude\": -0.1289,\n    \"imageUrl\": \"https://images.unsplash.com/photo-1558160074-4d7d8bdf4256?auto=format&fit=crop&w=800\",\n    \"tags\": [\"boba\", \"sweet\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/drinks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"drinks"
+					]
+				}
+			}
+		},
+		{
+			"name": "6. Create Negroni",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Negroni\",\n    \"category\": \"Cocktail\",\n    \"rating\": 3.5,\n    \"price\": 11.00,\n    \"notes\": \"Classic presentation.\",\n    \"locationName\": \"Bar Termini\",\n    \"locationCity\": \"Soho\",\n    \"latitude\": 51.5132,\n    \"longitude\": -0.1302,\n    \"imageUrl\": \"https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=800\",\n    \"tags\": [\"gin\", \"classic\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/drinks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"drinks"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	]
+}
